@@ -146,6 +146,33 @@ KEYSTORE_FILE / KEYSTORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD
 
 未配置时构建出的是未签名 APK，**无法覆盖安装官方版**。
 
+### 自签构建（无需 Secrets）
+
+本 fork 额外提供 `.github/workflows/build-apks-selfsigned.yml`：
+
+- 在 runner 上用 `keytool` 现场生成临时 keystore，并把
+  `KEYSTORE_FILE / KEYSTORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD`
+  写进 `gradle.properties`，不依赖任何仓库 Secrets。
+- push 到 `main` 或 `feature/custom-backend` 触发，也可手动 dispatch。
+- 产物：`release`（约 6 MB，已签名、已混淆）和 `debug`（约 28 MB）两个 artifact。
+
+```bash
+python3 tools/fetch_apk.py feature/custom-backend
+```
+
+输出到 `apk_out/`。签名证书是每次构建新生成的，因此**自签 APK 与上一版自签
+APK 签名不同，无法互相覆盖安装**，与官方版也无法互相覆盖。若要长期覆盖安装，
+请用上面的 Secrets 方案固定 keystore。
+
+### 两个必须保留的 CI 细节
+
+1. `fetch-depth: 0` —— 根 `build.gradle.kts` 用 JGit 读
+   `refs/remotes/origin/main` 的提交数来算 `versionCode`。
+   `actions/checkout` 默认浅克隆，没有 remote-tracking ref，
+   构建会以 `RefDatabase.exactRef(String) is null` 直接失败。
+2. `setup-android@v4` —— v3 会执行 `sdkmanager tools`，
+   而 `tools` 包已从 SDK 仓库下架，action 会以退出码 1 失败。
+
 本地生成 keystore：
 
 ```bash

@@ -26,3 +26,7 @@ render.experimental.xml
 
 app/src/main/jniLibs
 app/release
+
+# 构建产物
+apk_out/
+*.apk
