@@ -1,0 +1,111 @@
+name: BUILD-APKS (Signed)
+
+# 在 fork 上独立构建并签名，产出可直接安装、可互相覆盖升级的 APK。
+#
+# 签名密钥来源（按优先级）：
+#   1. 仓库 Secrets 中的固定 keystore（KEYSTORE / KEYSTORE_PASSWORD /
+#      KEY_ALIAS / KEY_PASSWORD）。证书长期不变，因此新版本可以覆盖安装
+#      旧版本。
+#   2. 没有配置 Secrets 时，临时生成一个 keystore。注意这种方式每次构建的
+#      证书都不同，只能安装一次，之后的版本无法覆盖它。
+on:
+  push:
+    branches:
+      - main
+      - feature/custom-backend
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # build.gradle.kts derives versionCode from the commit count of
+          # refs/remotes/origin/main via JGit. A shallow clone has no
+          # remote-tracking refs, so the lookup returns null and the build
+          # dies with "RefDatabase.exactRef(String) is null".
+          fetch-depth: 0
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: wrapper
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Accept SDK licenses
+        run: |
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+
+      - name: Setup NDK
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r27
+          link-to-sdk: true
+
+      - name: Write signing key
+        run: |
+          set -euo pipefail
+          if [ -n "${{ secrets.KEYSTORE }}" ]; then
+            # 固定 keystore：证书稳定，新版本可覆盖安装旧版本。
+            echo "${{ secrets.KEYSTORE }}" | base64 -d > key.p12
+            {
+              echo "KEYSTORE_FILE=key.p12"
+              echo "KEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}"
+              echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}"
+              echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}"
+            } >> gradle.properties
+            echo "使用仓库固定 keystore"
+          else
+            # 回落：临时 keystore，每次构建证书都不同。
+            keytool -genkeypair -v \
+              -keystore key.p12 \
+              -alias subcase \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass android -keypass android \
+              -dname "CN=SubCase Local Build, OU=Dev, O=Local, L=NA, S=NA, C=CN"
+            {
+              echo "KEYSTORE_FILE=key.p12"
+              echo "KEYSTORE_PASSWORD=android"
+              echo "KEY_ALIAS=subcase"
+              echo "KEY_PASSWORD=android"
+            } >> gradle.properties
+            echo "未配置 Secrets，使用临时 keystore"
+          fi
+          keytool -list -v -keystore key.p12 \
+            -storepass "${{ secrets.KEYSTORE_PASSWORD }}" \
+            -alias "${{ secrets.KEY_ALIAS }}" 2>/dev/null | grep -E "SHA256|Owner" || true
+
+      - name: Build Release APK
+        run: ./gradlew assembleRelease
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release
+          path: app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug
+
+      - name: Upload debug artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 30

@@ -146,23 +146,39 @@ KEYSTORE_FILE / KEYSTORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD
 
 未配置时构建出的是未签名 APK，**无法覆盖安装官方版**。
 
-### 自签构建（无需 Secrets）
+### 本 fork 的构建 workflow
 
-本 fork 额外提供 `.github/workflows/build-apks-selfsigned.yml`：
+`.github/workflows/build-apks-signed.yml` —— push 到 `main` 或 `feature/custom-backend`
+触发，也可手动 dispatch。签名密钥来源按优先级：
 
-- 在 runner 上用 `keytool` 现场生成临时 keystore，并把
-  `KEYSTORE_FILE / KEYSTORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD`
-  写进 `gradle.properties`，不依赖任何仓库 Secrets。
-- push 到 `main` 或 `feature/custom-backend` 触发，也可手动 dispatch。
-- 产物：`release`（约 6 MB，已签名、已混淆）和 `debug`（约 28 MB）两个 artifact。
+1. **仓库 Secrets 中的固定 keystore**（推荐）：`KEYSTORE`（base64）、
+   `KEYSTORE_PASSWORD`、`KEY_ALIAS`、`KEY_PASSWORD`。
+   证书长期不变，**新版本可以覆盖安装旧版本**。
+2. **回落：临时 keystore**：没有配置 Secrets 时在 runner 上现场生成。
+   每次构建证书都不同，只能安装一次，之后的版本无法覆盖它。
+
+配置 Secrets 用 `tools/set_secrets.py`（需 `pynacl`，本机已装）：
+
+```bash
+export GITHUB_TOKEN=...
+python3 tools/set_secrets.py <keystore路径> <alias> <口令>
+```
+
+它会取仓库的 libsodium public key，把 4 个值用 sealed box 加密后写入。
+本地生成 keystore：
+
+```bash
+keytool -genkeypair -v -keystore subcase.p12 -alias subcase \
+        -keyalg RSA -keysize 2048 -validity 10000
+```
+
+下载产物：
 
 ```bash
 python3 tools/fetch_apk.py feature/custom-backend
 ```
 
-输出到 `apk_out/`。签名证书是每次构建新生成的，因此**自签 APK 与上一版自签
-APK 签名不同，无法互相覆盖安装**，与官方版也无法互相覆盖。若要长期覆盖安装，
-请用上面的 Secrets 方案固定 keystore。
+输出到 `apk_out/`，含 `release`（约 6 MB，已签名、已混淆）和 `debug`（约 28 MB）。
 
 ### 两个必须保留的 CI 细节
 
