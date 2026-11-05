@@ -81,6 +81,7 @@ fun HomeScreen(navController: NavController) {
                         url = buildSubStoreUrl(
                             allowLan = ConfigStore.isAllowLan,
                             lanIp = GlobalStatus.lanIP.value,
+                            remoteBackendUrl = ConfigStore.remoteBackendUrl,
                         ),
                         homeViewModel = homeViewModel,
                         modifier = Modifier.fillMaxSize(),

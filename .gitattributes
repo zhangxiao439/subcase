@@ -1,0 +1,17 @@
+# 统一行尾，避免 Windows 与 Linux 之间的差异导致整文件冲突。
+* text=auto eol=lf
+
+# 脚本必须保持 LF，否则在 Linux CI 上无法执行
+*.sh text eol=lf
+*.py text eol=lf
+
+# 二进制资源不做行尾转换
+*.apk binary
+*.aar binary
+*.jar binary
+*.zip binary
+*.png binary
+*.jpg binary
+*.webp binary
+*.so binary
+*.jks binary

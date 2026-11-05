@@ -21,13 +21,32 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import ano.subcase.ui.HomeViewModel
 import timber.log.Timber
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 
 internal fun buildSubStoreUrl(
     allowLan: Boolean,
     lanIp: String,
+    remoteBackendUrl: String = "",
 ): String {
     val host = lanIp.takeIf { allowLan && it.isNotBlank() } ?: "127.0.0.1"
-    return "http://$host:8080/subs?api=http://$host:8081"
+    // 配置了自建后端时优先指向它，否则回落到 App 内置的本地后端。
+    val remote = remoteBackendUrl.trim()
+    val api = if (remote.isNotEmpty()) remote else "http://$host:8081"
+    // Sub-Store 前端按 & 和 = 切分查询串后只取 api= 后的第一段，
+    // 因此整个后端地址必须编码后再拼接，否则含 = 或 & 的地址会被截断。
+    return "http://$host:8080/subs?api=${URLEncoder.encode(api, StandardCharsets.UTF_8.name())}"
+}
+
+/** 当前实际生效的后端地址，供设置页展示。 */
+internal fun resolveBackendAddress(
+    allowLan: Boolean,
+    lanIp: String,
+    remoteBackendUrl: String = "",
+): String {
+    val host = lanIp.takeIf { allowLan && it.isNotBlank() } ?: "127.0.0.1"
+    val remote = remoteBackendUrl.trim()
+    return if (remote.isNotEmpty()) remote else "http://$host:8081"
 }
 
 @SuppressLint("SetJavaScriptEnabled")

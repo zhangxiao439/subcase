@@ -1,11 +1,13 @@
 package ano.subcase.ui.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -26,6 +28,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
@@ -44,6 +47,7 @@ import ano.subcase.ui.MainViewModel
 import ano.subcase.ui.components.Section
 import ano.subcase.ui.components.SectionDefaults
 import ano.subcase.ui.components.buildSubStoreUrl
+import ano.subcase.ui.components.resolveBackendAddress
 import ano.subcase.ui.theme.Blue
 import ano.subcase.ui.theme.switchColors
 import ano.subcase.util.CrashReporter
@@ -66,6 +70,7 @@ import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.popup.OverlayDropdownPopup
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -91,6 +96,8 @@ fun SettingsScreen(navController: NavController) {
             FrontEndCard(mViewModel)
             Spacer(modifier = Modifier.padding(10.dp))
             BackEndCard(mViewModel)
+            Spacer(modifier = Modifier.padding(10.dp))
+            CustomBackendSection()
             Spacer(modifier = Modifier.padding(10.dp))
             AllowLanSpan(mViewModel)
             Spacer(modifier = Modifier.padding(10.dp))
@@ -165,8 +172,12 @@ fun BackEndCard(mViewModel: MainViewModel) {
     ) {
         item {
             Text(stringResource(R.string.address))
-            val host = if (mViewModel.allowLan) GlobalStatus.lanIP.value else "127.0.0.1"
-            val address = "http://${host}:8081"
+            // 配置了自建后端时展示真实地址，否则展示本地后端地址。
+            val address = resolveBackendAddress(
+                allowLan = mViewModel.allowLan,
+                lanIp = GlobalStatus.lanIP.value,
+                remoteBackendUrl = ConfigStore.remoteBackendUrl,
+            )
             Text(
                 address,
                 modifier = Modifier.clickable {
@@ -187,9 +198,77 @@ fun BackEndCard(mViewModel: MainViewModel) {
     }
 }
 
+/**
+ * 自定义后端地址。留空表示继续使用 App 内置的本地后端；
+ * 填写后前端会通过 ?api= 指向该地址，数据保存在你自己的服务器上。
+ */
 @Composable
-fun AllowLanSpan(mViewModel: MainViewModel) {
-    Section(
+private fun CustomBackendSection() {
+    val context = LocalContext.current
+    var input by remember { mutableStateOf(ConfigStore.remoteBackendUrl) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 10.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.custom_backend),
+            color = MiuixTheme.colorScheme.onBackground,
+            fontSize = SectionDefaults.CaptionFontSize,
+        )
+        Spacer(Modifier.height(SectionDefaults.HeaderSpacing))
+        TextField(
+            value = input,
+            onValueChange = { input = it },
+            label = stringResource(R.string.custom_backend),
+            useLabelAsPlaceholder = true,
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )        Spacer(Modifier.height(SectionDefaults.FooterSpacing))
+        Text(
+            text = stringResource(R.string.custom_backend_hint),
+            color = SectionDefaults.FooterColor,
+            fontSize = SectionDefaults.CaptionFontSize,
+        )
+        Spacer(Modifier.height(SectionDefaults.FooterSpacing))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            TextButton(
+                text = stringResource(R.string.custom_backend_saved),
+                modifier = Modifier.weight(1f),
+                onClick = {
+                    ConfigStore.remoteBackendUrl = input
+                    Toast.makeText(
+                        context,
+                        stringResource(R.string.custom_backend_saved),
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                },
+                colors = ButtonDefaults.textButtonColorsPrimary(),
+            )
+            TextButton(
+                text = stringResource(R.string.custom_backend_cleared),
+                modifier = Modifier.weight(1f),
+                onClick = {
+                    input = ""
+                    ConfigStore.remoteBackendUrl = ""
+                    Toast.makeText(
+                        context,
+                        stringResource(R.string.custom_backend_cleared),
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                },
+                colors = ButtonDefaults.textButtonColorsPrimary(),
+            )
+        }
+    }
+}
+
+@Composable
+fun AllowLanSpan(mViewModel: MainViewModel) {    Section(
         footer = if (mViewModel.allowLan && !GlobalStatus.isWifi.value) {
             "当前不是WIFI环境,无法获取准确的局域网IP!"
         } else {

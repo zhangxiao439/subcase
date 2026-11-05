@@ -2,6 +2,7 @@ package ano.subcase.util
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.compose.runtime.mutableStateOf
 import androidx.core.content.edit
 import ano.subcase.caseApp
 import ano.subcase.util.PreferencesKeys.ALLOW_CRASH_REPORT
@@ -19,6 +20,8 @@ object PreferencesKeys {
 
     const val ALLOW_LAN = "allow_lan"
     const val ALLOW_CRASH_REPORT = "allow_crash_report"
+
+    const val REMOTE_BACKEND_URL = "remote_backend_url"
 
     const val BACKEND_LOCAL_VER = "backend_local_ver"
     const val FRONTEND_LOCAL_VER = "frontend_local_ver"
@@ -77,6 +80,23 @@ object ConfigStore {
         get() = getInstance().getBoolean(ALLOW_CRASH_REPORT, true)
         set(value) {
             getInstance().edit { putBoolean(ALLOW_CRASH_REPORT, value) }
+        }
+
+    /**
+     * 自建 Sub-Store 后端地址（形如 https://host/path）。
+     * 为空时使用 App 内置的本地后端；非空时前端通过 ?api= 指向该远端后端。
+     * 用 State 承载，设置页保存后首页才能重组并让 WebView 重新加载。
+     */
+    private val remoteBackendUrlState = mutableStateOf(
+        getInstance().getString(REMOTE_BACKEND_URL, "")!!.trim(),
+    )
+
+    var remoteBackendUrl: String
+        get() = remoteBackendUrlState.value
+        set(value) {
+            val trimmed = value.trim()
+            getInstance().edit { putString(REMOTE_BACKEND_URL, trimmed) }
+            remoteBackendUrlState.value = trimmed
         }
 
     var localFrontendVersion: String

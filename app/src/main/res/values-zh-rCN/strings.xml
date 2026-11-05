@@ -16,6 +16,11 @@
 
     <string name="version">版本</string>
 
+    <string name="custom_backend">自定义后端</string>
+    <string name="custom_backend_hint">指向你自己的 Sub-Store 后端地址；留空则使用内置的本地后端。示例：https://sub.example.com/your-path</string>
+    <string name="custom_backend_saved">已保存自定义后端</string>
+    <string name="custom_backend_cleared">已清除自定义后端，恢复使用内置本地后端</string>
+
     <string name="navigate_back">返回上一页</string>
     <string name="settings">设置</string>
     <string name="open_settings">打开设置</string>
