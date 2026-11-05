@@ -11,6 +11,7 @@ import ano.subcase.util.PreferencesKeys.APP_IS_FIRST_OPEN
 import ano.subcase.util.PreferencesKeys.BACKEND_LOCAL_VER
 import ano.subcase.util.PreferencesKeys.FRONTEND_LOCAL_VER
 import ano.subcase.util.PreferencesKeys.LEGACY_NODE_MIGRATED
+import ano.subcase.util.PreferencesKeys.REMOTE_BACKEND_URL
 
 object PreferencesKeys {
     const val HOME_PANEL_VERTICAL_FRACTION = "home_panel_vertical_fraction"
@@ -86,10 +87,11 @@ object ConfigStore {
      * 自建 Sub-Store 后端地址（形如 https://host/path）。
      * 为空时使用 App 内置的本地后端；非空时前端通过 ?api= 指向该远端后端。
      * 用 State 承载，设置页保存后首页才能重组并让 WebView 重新加载。
+     * 惰性初始化，避免 object 构造时 caseApp 尚未就绪。
      */
-    private val remoteBackendUrlState = mutableStateOf(
-        getInstance().getString(REMOTE_BACKEND_URL, "")!!.trim(),
-    )
+    private val remoteBackendUrlState by lazy {
+        mutableStateOf(getInstance().getString(REMOTE_BACKEND_URL, "")!!.trim())
+    }
 
     var remoteBackendUrl: String
         get() = remoteBackendUrlState.value

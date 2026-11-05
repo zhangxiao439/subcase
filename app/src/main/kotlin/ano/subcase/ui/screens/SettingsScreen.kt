@@ -206,6 +206,9 @@ fun BackEndCard(mViewModel: MainViewModel) {
 private fun CustomBackendSection() {
     val context = LocalContext.current
     var input by remember { mutableStateOf(ConfigStore.remoteBackendUrl) }
+    // stringResource 是 @Composable，不能在 onClick 回调里调用，先取出文案。
+    val savedText = stringResource(R.string.custom_backend_saved)
+    val clearedText = stringResource(R.string.custom_backend_cleared)
 
     Column(
         modifier = Modifier
@@ -225,7 +228,8 @@ private fun CustomBackendSection() {
             useLabelAsPlaceholder = true,
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
-        )        Spacer(Modifier.height(SectionDefaults.FooterSpacing))
+        )
+        Spacer(Modifier.height(SectionDefaults.FooterSpacing))
         Text(
             text = stringResource(R.string.custom_backend_hint),
             color = SectionDefaults.FooterColor,
@@ -237,29 +241,21 @@ private fun CustomBackendSection() {
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             TextButton(
-                text = stringResource(R.string.custom_backend_saved),
+                text = savedText,
                 modifier = Modifier.weight(1f),
                 onClick = {
                     ConfigStore.remoteBackendUrl = input
-                    Toast.makeText(
-                        context,
-                        stringResource(R.string.custom_backend_saved),
-                        Toast.LENGTH_SHORT,
-                    ).show()
+                    Toast.makeText(context, savedText, Toast.LENGTH_SHORT).show()
                 },
                 colors = ButtonDefaults.textButtonColorsPrimary(),
             )
             TextButton(
-                text = stringResource(R.string.custom_backend_cleared),
+                text = clearedText,
                 modifier = Modifier.weight(1f),
                 onClick = {
                     input = ""
                     ConfigStore.remoteBackendUrl = ""
-                    Toast.makeText(
-                        context,
-                        stringResource(R.string.custom_backend_cleared),
-                        Toast.LENGTH_SHORT,
-                    ).show()
+                    Toast.makeText(context, clearedText, Toast.LENGTH_SHORT).show()
                 },
                 colors = ButtonDefaults.textButtonColorsPrimary(),
             )
@@ -268,7 +264,8 @@ private fun CustomBackendSection() {
 }
 
 @Composable
-fun AllowLanSpan(mViewModel: MainViewModel) {    Section(
+fun AllowLanSpan(mViewModel: MainViewModel) {
+    Section(
         footer = if (mViewModel.allowLan && !GlobalStatus.isWifi.value) {
             "当前不是WIFI环境,无法获取准确的局域网IP!"
         } else {
