@@ -1,0 +1,77 @@
+name: BUILD-APKS (Self-Signed)
+
+# 在 fork 上独立构建，不依赖任何仓库 secrets：
+# 自动生成临时 keystore 完成签名，产出可直接安装的 APK。
+on:
+  push:
+    branches:
+      - main
+      - feature/custom-backend
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: wrapper
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup NDK
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r27
+          link-to-sdk: true
+
+      - name: Generate temporary keystore
+        run: |
+          keytool -genkeypair -v \
+            -keystore key.jks \
+            -alias subcase \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass android -keypass android \
+            -dname "CN=SubCase Local Build, OU=Dev, O=Local, L=NA, S=NA, C=CN"
+          {
+            echo "KEYSTORE_PASSWORD=android"
+            echo "KEY_ALIAS=subcase"
+            echo "KEY_PASSWORD=android"
+            echo "KEYSTORE_FILE=key.jks"
+          } >> gradle.properties
+
+      - name: Build Release APK
+        run: ./gradlew assembleRelease
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release
+          path: app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug
+
+      - name: Upload debug artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 7
